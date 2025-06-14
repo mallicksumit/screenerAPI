@@ -7,47 +7,23 @@ Original file is located at
     https://colab.research.google.com/drive/11V-hfrq11IoAim5cQXyOdG2nHqaEP_YO
 """
 
-# Commented out IPython magic to ensure Python compatibility.
-# %%shell
-# sudo apt -y update
-# sudo apt install -y wget curl unzip
-# wget http://archive.ubuntu.com/ubuntu/pool/main/libu/libu2f-host/libu2f-udev_1.1.4-1_all.deb
-# sudo dpkg -i libu2f-udev_1.1.4-1_all.deb
-# wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-# sudo dpkg -i google-chrome-stable_current_amd64.deb
-# pip install selenium chromedriver_autoinstaller
-# python -c "import chromedriver_autoinstaller; chromedriver_autoinstaller.install()"
-
 from selenium import webdriver
 import chromedriver_autoinstaller
-
-# Auto-install chromedriver if needed
-chromedriver_autoinstaller.install()
-
-chrome_options = webdriver.ChromeOptions()
-chrome_options.add_argument('--headless=new')  # Use headless mode for Colab
-chrome_options.add_argument('--no-sandbox')
-chrome_options.add_argument('--disable-dev-shm-usage')
-chrome_options.add_argument('--disable-gpu')
-
-
 from flask import Flask, request, jsonify
 import os
 import time
 import urllib.parse
 import pandas as pd
 import logging
-from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 app = Flask(__name__)
 
@@ -72,51 +48,82 @@ def login_screener(driver, username, password):
         driver.get("https://www.screener.in/login/")
         
         wait = WebDriverWait(driver, 10)
-        wait.until(EC.presence_of_element_located((By.ID, "id_username")))
-        driver.find_element(By.ID, "id_password").send_keys(password)
-        wait = WebDriverWait(driver, 10)
+        username_field = wait.until(EC.presence_of_element_located((By.ID, "id_username")))
+        password_field = driver.find_element(By.ID, "id_password")
+        
+        username_field.send_keys(username)
+        password_field.send_keys(password)
+        
         login_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "button.button-primary")))
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", login_button)
         login_button.click()
 
-
+        # Wait for login to complete - check for dashboard element
+        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".dashboard")))
         logger.info("Login successful.")
     except TimeoutException as e:
         driver.save_screenshot("login_error.png")
-        logger.error("Login failed. Screenshot saved as login_error.png")
-        raise e
+        logger.error(f"Login failed: {str(e)}. Screenshot saved as login_error.png")
+        raise
 
 def scrape_screened_results_paginated(driver, base_url, max_pages=5):
-    wait = WebDriverWait(driver, 10)
     driver.get(base_url)
-    print("Current URL:", driver.current_url)
-    print("Page title:", driver.title)
+    logger.info(f"Current URL: {driver.current_url}")
+    logger.info(f"Page title: {driver.title}")
+    
     all_data = []
-
+    wait = WebDriverWait(driver, 15)  # Increased timeout
+    
     for page in range(1, max_pages + 1):
-        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "table.data-table")))
-        rows = driver.find_elements(By.CSS_SELECTOR, "table.data-table tbody tr")
-        for row in rows:
-            cols = row.find_elements(By.TAG_NAME, "td")
-            if len(cols) < 7:
-                continue
-            all_data.append({
-                "Ticker": cols[0].text,
-                "Market Cap": cols[1].text,
-                "Price": cols[2].text,
-                "PE Ratio": cols[3].text,
-                "Dividend Yield": cols[4].text,
-                "Profit Growth 3Y": cols[5].text,
-                "Dividend Payout": cols[6].text
-            })
         try:
-            next_btn = driver.find_element(By.CSS_SELECTOR, "a[rel='next']")
-            if 'disabled' in next_btn.get_attribute('class'):
+            # Wait for either the table or a "no results" message
+            try:
+                wait.until(EC.presence_of_element_located(
+                    (By.CSS_SELECTOR, "table.data-table, .no-results")
+                ))
+                
+                # Check if no results found
+                no_results = driver.find_elements(By.CSS_SELECTOR, ".no-results")
+                if no_results:
+                    logger.info("No results found for the query")
+                    break
+                
+                # Process table if found
+                table = driver.find_element(By.CSS_SELECTOR, "table.data-table")
+                rows = table.find_elements(By.CSS_SELECTOR, "tbody tr")
+                
+                for row in rows:
+                    cols = row.find_elements(By.TAG_NAME, "td")
+                    if len(cols) < 7:
+                        continue
+                    all_data.append({
+                        "Ticker": cols[0].text,
+                        "Market Cap": cols[1].text,
+                        "Price": cols[2].text,
+                        "PE Ratio": cols[3].text,
+                        "Dividend Yield": cols[4].text,
+                        "Profit Growth 3Y": cols[5].text,
+                        "Dividend Payout": cols[6].text
+                    })
+                
+                # Try to go to next page
+                try:
+                    next_btn = driver.find_element(By.CSS_SELECTOR, "a[rel='next']:not(.disabled)")
+                    next_btn.click()
+                    time.sleep(2)  # Brief pause for page load
+                except NoSuchElementException:
+                    break
+                    
+            except TimeoutException:
+                driver.save_screenshot("scrape_timeout.png")
+                logger.error("Timeout waiting for results table")
                 break
-            next_btn.click()
-            time.sleep(2)
-        except Exception:
+                
+        except Exception as e:
+            driver.save_screenshot("scrape_error.png")
+            logger.error(f"Error during scraping: {str(e)}")
             break
+            
     return all_data
 
 @app.route('/scrape', methods=['POST'])
@@ -132,26 +139,27 @@ def scrape():
     ])
 
     url = build_url(filters)
-
-    options = Options()
-    options.add_argument('--headless')
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
-    driver = webdriver.Chrome(options=options)
-    # Unique user data directory per request to avoid conflicts
-    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64)...")
-
-
-    service = Service('/usr/bin/chromedriver')
-    driver = webdriver.Chrome(service=service, options=chrome_options)
-
+    
+    # Configure Chrome options
+    chrome_options = Options()
+    chrome_options.add_argument('--headless=new')
+    chrome_options.add_argument('--no-sandbox')
+    chrome_options.add_argument('--disable-dev-shm-usage')
+    chrome_options.add_argument('--disable-gpu')
+    chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+    
+    # Initialize driver
+    driver = webdriver.Chrome(options=chrome_options)
+    
     try:
         login_screener(driver, SCRUSER, SCRPASSWORD)
         data = scrape_screened_results_paginated(driver, url, max_pages=5)
+        return jsonify(data)
+    except Exception as e:
+        logger.error(f"Error in scrape endpoint: {str(e)}")
+        return jsonify({"error": str(e)}), 500
     finally:
         driver.quit()
-
-    return jsonify(data)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
