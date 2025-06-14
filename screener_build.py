@@ -76,7 +76,10 @@ def login_screener(driver, username, password):
 
         driver.find_element(By.ID, "id_username").send_keys(username)
         driver.find_element(By.ID, "id_password").send_keys(password)
-        driver.find_element(By.CSS_SELECTOR, 'input[type="submit"][value="Login"]').click()
+        wait = WebDriverWait(driver, 10)
+        login_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[type="submit"]')))
+        login_button.click()
+
 
         logger.info("Login successful.")
     except TimeoutException as e:
