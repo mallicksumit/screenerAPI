@@ -133,12 +133,14 @@ def scrape():
 
     url = build_url(filters)
 
-    chrome_options = Options()
-    chrome_options.add_argument("--headless=new")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
+    options = Options()
+    options.add_argument('--headless')
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    driver = webdriver.Chrome(options=options)
     # Unique user data directory per request to avoid conflicts
-    chrome_options.add_argument(f"--user-data-dir=/tmp/selenium_user_data_{os.getpid()}")
+    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64)...")
+
 
     service = Service('/usr/bin/chromedriver')
     driver = webdriver.Chrome(service=service, options=chrome_options)
