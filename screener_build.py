@@ -49,7 +49,6 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
 
 app = Flask(__name__)
 
@@ -136,7 +135,7 @@ def scrape():
     # Unique user data directory per request to avoid conflicts
     chrome_options.add_argument(f"--user-data-dir=/tmp/selenium_user_data_{os.getpid()}")
 
-    service = Service(ChromeDriverManager().install())
+    service = Service('/usr/bin/chromedriver')
     driver = webdriver.Chrome(service=service, options=chrome_options)
 
     try:
