@@ -73,8 +73,6 @@ def login_screener(driver, username, password):
         
         wait = WebDriverWait(driver, 10)
         wait.until(EC.presence_of_element_located((By.ID, "id_username")))
-
-        driver.find_element(By.ID, "id_username").send_keys(username)
         driver.find_element(By.ID, "id_password").send_keys(password)
         wait = WebDriverWait(driver, 10)
         login_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "button.button-primary")))
