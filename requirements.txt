@@ -1,6 +1,5 @@
 Flask
 selenium
-webdriver-manager
 chromedriver-autoinstaller
 pandas
 gunicorn
