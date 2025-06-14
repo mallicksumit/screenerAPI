@@ -36,4 +36,5 @@ WORKDIR /app
 
 EXPOSE 5000
 
-CMD ["gunicorn", "-w", "1", "-b", "0.0.0.0:5000", "screener_build:app"]
+CMD ["gunicorn", "-w", "1", "-b", "0.0.0.0:5000", "--chdir", "/app", "screener_build:app"]
+
