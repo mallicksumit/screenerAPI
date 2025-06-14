@@ -89,10 +89,12 @@ def login_screener(driver, username, password):
 def scrape_screened_results_paginated(driver, base_url, max_pages=5):
     wait = WebDriverWait(driver, 10)
     driver.get(base_url)
+    print("Current URL:", driver.current_url)
+    print("Page title:", driver.title)
     all_data = []
 
     for page in range(1, max_pages + 1):
-        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "table.data-table tbody tr")))
+        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "table.data-table")))
         rows = driver.find_elements(By.CSS_SELECTOR, "table.data-table tbody tr")
         for row in rows:
             cols = row.find_elements(By.TAG_NAME, "td")
