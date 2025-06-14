@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: screener-scraper
+    env: docker
+    plan: free
+    region: singapore
+    envVars:
+      - key: SCRUSER
+        value: your_username
+      - key: SCRPASSWORD
+        value: your_password
