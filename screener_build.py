@@ -36,8 +36,6 @@ print(driver.title)
 
 driver.quit()
 
-pip install webdriver-manager
-
 from flask import Flask, request, jsonify
 import os
 import time
