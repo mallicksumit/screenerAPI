@@ -61,20 +61,22 @@ def build_url(filters):
     return full_url
 
 def login_screener(driver, username, password):
-    driver.get("https://www.screener.in/login/")
-    wait = WebDriverWait(driver, 10)
-    wait.until(EC.presence_of_element_located((By.ID, "id_username")))
-    driver.find_element(By.ID, "id_username").send_keys(username)
-    driver.find_element(By.ID, "id_password").send_keys(password)
-    wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'form button[type="submit"]')))
-    button = driver.find_element(By.CSS_SELECTOR, 'form button[type="submit"]')
-    driver.execute_script("arguments[0].scrollIntoView(true);", button)
-    time.sleep(0.5)
     try:
-        button.click()
-    except Exception:
-        driver.execute_script("arguments[0].click();", button)
-    wait.until(EC.presence_of_element_located((By.ID, "nav-user-menu")))
+        logger.info("Opening Screener login page...")
+        driver.get("https://www.screener.in/login/")
+        
+        wait = WebDriverWait(driver, 10)
+        wait.until(EC.presence_of_element_located((By.ID, "id_username")))
+
+        driver.find_element(By.ID, "id_username").send_keys(username)
+        driver.find_element(By.ID, "id_password").send_keys(password)
+        driver.find_element(By.XPATH, '//button[text()="Login"]').click()
+
+        logger.info("Login successful.")
+    except TimeoutException as e:
+        driver.save_screenshot("login_error.png")
+        logger.error("Login failed. Screenshot saved as login_error.png")
+        raise e
 
 def scrape_screened_results_paginated(driver, base_url, max_pages=5):
     wait = WebDriverWait(driver, 10)
