@@ -46,23 +46,28 @@ def login_screener(driver, username, password):
     try:
         logger.info("Opening Screener login page...")
         driver.get("https://www.screener.in/login/")
-        
+
         wait = WebDriverWait(driver, 20)
+
+        # Wait until fields are loaded
         username_field = wait.until(EC.presence_of_element_located((By.NAME, "username")))
-        password_field = driver.find_element(By.NAME, "password")
-        
+        password_field = wait.until(EC.presence_of_element_located((By.NAME, "password")))
+
         username_field.send_keys(username)
         password_field.send_keys(password)
-        
+
+        # Click via JavaScript to bypass overlays
         login_button = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "button[type='submit']")))
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", login_button)
-        time.sleep(1)  # let any UI transitions finish
+        time.sleep(2)  # let animation or UI settle
         driver.execute_script("arguments[0].click();", login_button)
 
-        # Confirm login via logout link
+        # Wait until dashboard or logout link is visible
         wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "a[href='/logout/']")))
+
         logger.info("Login successful.")
     except TimeoutException as e:
+        # Save diagnostics
         driver.save_screenshot("login_error.png")
         with open("page_source_debug.html", "w", encoding="utf-8") as f:
             f.write(driver.page_source)
@@ -145,7 +150,7 @@ def scrape():
     
     # Configure Chrome options
     chrome_options = Options()
-    chrome_options.add_argument('--headless=new')
+    #chrome_options.add_argument('--headless=new')
     chrome_options.add_argument('--no-sandbox')
     chrome_options.add_argument('--disable-dev-shm-usage')
     chrome_options.add_argument('--disable-gpu')
