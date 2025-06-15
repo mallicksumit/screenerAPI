@@ -47,22 +47,23 @@ def login_screener(driver, username, password):
         logger.info("Opening Screener login page...")
         driver.get("https://www.screener.in/login/")
         
-        wait = WebDriverWait(driver, 10)
-        username_field = wait.until(EC.presence_of_element_located((By.ID, "id_username")))
-        password_field = driver.find_element(By.ID, "id_password")
+        wait = WebDriverWait(driver, 20)
+        username_field = wait.until(EC.presence_of_element_located((By.NAME, "username")))
+        password_field = driver.find_element(By.NAME, "password")
         
         username_field.send_keys(username)
         password_field.send_keys(password)
         
-        login_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "button.button-primary")))
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", login_button)
+        login_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "button[type='submit']")))
         login_button.click()
 
-        # Wait for login to complete - check for dashboard element
-        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".dashboard")))
+        # Wait for logout link as proof of login
+        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "a[href='/logout/']")))
         logger.info("Login successful.")
     except TimeoutException as e:
         driver.save_screenshot("login_error.png")
+        with open("page_source_debug.html", "w", encoding="utf-8") as f:
+            f.write(driver.page_source)
         logger.error(f"Login failed: {str(e)}. Screenshot saved as login_error.png")
         raise
 
