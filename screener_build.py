@@ -54,17 +54,19 @@ def login_screener(driver, username, password):
         username_field.send_keys(username)
         password_field.send_keys(password)
         
-        login_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "button[type='submit']")))
-        login_button.click()
+        login_button = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "button[type='submit']")))
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", login_button)
+        time.sleep(1)  # let any UI transitions finish
+        driver.execute_script("arguments[0].click();", login_button)
 
-        # Wait for logout link as proof of login
+        # Confirm login via logout link
         wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "a[href='/logout/']")))
         logger.info("Login successful.")
     except TimeoutException as e:
         driver.save_screenshot("login_error.png")
         with open("page_source_debug.html", "w", encoding="utf-8") as f:
             f.write(driver.page_source)
-        logger.error(f"Login failed: {str(e)}. Screenshot saved as login_error.png")
+        logger.error(f"Login failed: {str(e)}. Screenshot saved.")
         raise
 
 def scrape_screened_results_paginated(driver, base_url, max_pages=5):
